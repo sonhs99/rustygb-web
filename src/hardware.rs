@@ -80,7 +80,7 @@ impl Emulator {
         unsafe {
             update_flag = false;
             let mut clock = 0;
-            while clock < 0xFFFF && !update_flag {
+            while clock < 0xFFFF {
                 clock += self.system.step();
             }
             if update_flag {

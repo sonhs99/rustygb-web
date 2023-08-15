@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Test</title>
+    <link rel="shortcut icon" href="#" />
+</head>
+
+<body>
+    <canvas id="view" height="288" width="320"></canvas>
+    <input type="file" id="romInput" accept="'.gb"/>
+    <script type="module">
+        import init, {Emulator} from './wasm.js'
+        const rom = document.getElementById("romInput");
+        const ctx = document.getElementById("view").getContext("2d");
+        const newCanvas = document.createElement("canvas");
+        newCanvas.width = 160;
+        newCanvas.height = 144;
+        const new_ctx = newCanvas.getContext("2d");
+        let emul = undefined;
+        let keys = ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", "KeyZ", "KeyX", "KeyA", "KeyS"]
+
+        const runWasm = async () => {
+            let wasm = await init();
+            const bufferPointer = wasm.get_frame_buffer_ptr();
+            rom.addEventListener("change", async (event) => {
+                var reader = new FileReader();
+                const imageData = ctx.createImageData(160, 144);
+                const frameBuffer = new Uint8Array(imageData.data.buffer);
+
+                const filelist = event.target.files;
+                if (filelist.length < 1) return;
+                reader.onload = e => {
+                    const rom = new Uint8Array(e.target.result);
+                    emul = Emulator.new(rom, frameBuffer);
+                };
+                reader.readAsArrayBuffer(filelist[0]);
+
+                const stepFrame = () => {
+                    requestAnimationFrame(stepFrame);
+                    if (emul) {
+                        emul.step(frameBuffer);
+                        new_ctx.putImageData(imageData, 0, 0);
+                        ctx.drawImage(newCanvas, 0, 0, 320, 288);
+                    }
+                };
+
+                window.addEventListener("keydown", e => {
+                    console.log(e.code);
+                    for(let idx = 0; idx < 8; idx++) {
+                        if(keys[idx] == e.code) {
+                            wasm.press_button(idx);
+                            break;
+                        }
+                    }
+                });
+                window.addEventListener("keyup", e => {
+                    for (let idx = 0; idx < 8; idx++) {
+                        if (keys[idx] == e.code) {
+                            wasm.release_button(idx);
+                            break;
+                        }
+                    }
+                });
+                stepFrame();
+            });
+        }
+        runWasm();
+    </script>
+</body>
+
+</html>
